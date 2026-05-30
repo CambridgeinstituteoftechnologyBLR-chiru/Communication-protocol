@@ -1,55 +1,91 @@
 `timescale 1ns/1ps
 
-module tb;
+module tb_tt_um_multi_protocol;
 
-reg clk;
-reg rst_n;
-reg [7:0] ui_in;
+    reg clk;
+    reg rst_n;
+    reg [7:0] ui_in;
 
-wire [7:0] uo_out;
+    wire [7:0] uo_out;
 
-wire [7:0] uio_out;
-wire [7:0] uio_oe;
+    tt_um_multi_protocol dut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .ui_in(ui_in),
+        .uo_out(uo_out)
+    );
 
-wire [7:0] uio_in;
+    always #5 clk = ~clk;
 
-assign uio_in[0] = uio_out[0]; // loopback
-assign uio_in[7:1] = 7'b0;
+    initial begin
 
-tt_um_single_wire_uart dut (
-    .clk(clk),
-    .rst_n(rst_n),
-    .ui_in(ui_in),
-    .uo_out(uo_out),
-    .uio_in(uio_in),
-    .uio_out(uio_out),
-    .uio_oe(uio_oe),
-    .ena(1'b1)
-);
+        clk   = 0;
+        rst_n = 0;
+        ui_in = 0;
 
-always #5 clk = ~clk;
+        #20;
+        rst_n = 1;
 
-initial
-begin
-    clk = 0;
-    rst_n = 0;
-    ui_in = 8'hA5;
+        //----------------------------------
+        // UART TEST
+        //----------------------------------
+        $display("UART TEST");
 
-    #20;
-    rst_n = 1;
+        ui_in[3:0] = 4'b1010;
+        ui_in[6:5] = 2'b00;
+        ui_in[4]   = 1'b1;
 
-    #300;
+        #10;
+        ui_in[4]   = 1'b0;
 
-    $display("Received Data = %h", uo_out);
+        #100;
 
-    #100;
-    $finish;
-end
+        //----------------------------------
+        // SPI TEST
+        //----------------------------------
+        $display("SPI TEST");
 
-initial
-begin
-    $dumpfile("uart.vcd");
-    $dumpvars(0,tb);
-end
+        ui_in[3:0] = 4'b1100;
+        ui_in[6:5] = 2'b01;
+        ui_in[4]   = 1'b1;
+
+        #10;
+        ui_in[4]   = 1'b0;
+
+        #100;
+
+        //----------------------------------
+        // I2C TEST
+        //----------------------------------
+        $display("I2C TEST");
+
+        ui_in[3:0] = 4'b0110;
+        ui_in[6:5] = 2'b10;
+        ui_in[4]   = 1'b1;
+
+        #10;
+        ui_in[4]   = 1'b0;
+
+        #100;
+
+        $finish;
+
+    end
+
+    initial begin
+        $monitor(
+            "T=%0t mode=%b data=%b UART=%b MOSI=%b SCLK=%b SDA=%b SCL=%b BUSY=%b DONE=%b",
+            $time,
+            ui_in[6:5],
+            ui_in[3:0],
+            uo_out[0],
+            uo_out[1],
+            uo_out[2],
+            uo_out[4],
+            uo_out[5],
+            uo_out[6],
+            uo_out[7]
+        );
+    end
 
 endmodule
